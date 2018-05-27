@@ -7,13 +7,15 @@
 //============================================================================
 #include <iostream>
 #include <vector>
-#include <assert.h>
-#include <mpi.h>
-#include <opencv2/opencv.hpp>
+#include "img_processing.h"
 using namespace std;
 
 const int deltaSize = 4;
 const int minSize = 8;
+
+// EXECUTION
+// LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 q1 /usr/local/INF442-2018/P5/test/neg/im0.jpg
+
 
 // Affichage d'une matrice de façon alignée pour des valeurs entre -9 et 99
 void displayMatrix(vector<vector<int> >& matrix) {
@@ -38,10 +40,10 @@ vector<vector<int> > emptyMatrix(int& l, int& c) {
 	return matrix;
 }
 
-vector<vector<int> > imageIntegraleTest(Mat& img) {
+vector<vector<int> > imageIntegrale(cv::Mat& image) {
 	// on crée 2 matrices vides pour contenir les sommes sur les colonnes et les sommes intégrales
-	int r = img.rows;
-	int c = img.cols;
+	int r = image.rows;
+	int c = image.cols;
 	vector<vector<int> > s = emptyMatrix(r, c);
 	vector<vector<int> > I = emptyMatrix(r, c);
 
@@ -92,58 +94,31 @@ vector<vector<int> > imageIntegraleTest(vector<vector<int> >& img) {
 	return I;
 }
 
-int testQ1() {
-	// To test locally, we initiate an small image
-	vector<vector<int> > image;
-	vector<int> ligne1{ 1,  1, -1};
-	vector<int> ligne2{-1, -1,  1};
-	vector<int> ligne3{ 1, -1,  1};
-	image.push_back(ligne1);
-	image.push_back(ligne2);
-	image.push_back(ligne3);
-	cout<<"Matrice de base:"<<endl;
-	displayMatrix(image);
+//int testQ1Old() {
+//	// To test locally, we initiate an small image
+//	vector<vector<int> > image;
+//	vector<int> ligne1{ 1,  1, -1};
+//	vector<int> ligne2{-1, -1,  1};
+//	vector<int> ligne3{ 1, -1,  1};
+//	image.push_back(ligne1);
+//	image.push_back(ligne2);
+//	image.push_back(ligne3);
+//	cout<<"Matrice de base:"<<endl;
+//	displayMatrix(image);
+//
+//	// TRAITEMENT DE L'IMAGE
+//	// Question 1 : calcul de l'image intégrale en 1 seul parcours
+//	vector<vector<int> > I = imageIntegraleTest(image);
+//	cout<<"Image intégrale:"<<endl;
+//	displayMatrix(I);
+//}
 
-	// TRAITEMENT DE L'IMAGE
-	// Question 1 : calculde l'image intégrale en 1 seul parcours
-	vector<vector<int> > I = imageIntegraleTest(image);
-	cout<<"Image intégrale:"<<endl;
-	displayMatrix(I);
-}
-
-int main(int argc, char** argv) {
-	// ON RECUPERE L'IMAGE
-	// Check command line args count
-	if(argc!=2){
-		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
-	}
-	// Test if argv[1] is actual file
-	struct stat buffer;
-	if (stat(argv[1],&buffer) != 0) {
-		cerr << "Cannot stat " << argv[1] <<  endl;
-	}
-	// Lit l'image
-	Mat image = imread(filename,IMREAD_GRAYSCALE);
-	// Check for invalid input
-	assert(!image.empty());
-
-	// TRAITEMENT DE L'IMAGE
-	// Question 1 : calcul de l'image intégrale en 1 seul parcours
+// To test if the beginning of the integral image matches the given img_processing and q_test results : OK !
+void testQ1() {
+	cv::Mat image = cv::imread("/usr/local/INF442-2018/P5/test/neg/im0.jpg", cv::IMREAD_GRAYSCALE);
 	vector<vector<int> > I = imageIntegrale(image);
 	cout<<"Image intégrale:"<<endl;
 	displayMatrix(I);
-
-	// Question 2
-	MPI_Init(&argc, &argv);
-	caract_mpi(I, 0);
-	MPI_Finalize();
-	// C'est du MPI je pense...
-	// Il y a 5*11*23 + Somme des carrés jusqu'à 22 (j'ai plus la formule de tete) carrés
-	// Grosso modo à un facteur près c'est du N cube...
-
-	// Question 3 et suivantes
-	// MPI aussi...
-	return 0;
 }
 
 // Cette fonction calcule le nombre de caractéristiques calculées par un processeur de rang rank
@@ -151,7 +126,7 @@ int nbCaracts(int& rank, int& rows, int& cols) {
 	return 0;
 }
 
-int caract_mpi(vector<vector<int> >& I, int& ROOT) {
+vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	int rows = I.size();
 	int cols = I[0].size();
 
@@ -176,10 +151,64 @@ int caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	   }
 	}
 	// on envoie tous les résultats à la racine pour qu'elle centralise tout
-    MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
+	if (rank != ROOT) {
+		MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
+	}
     if (rank == ROOT) {
-    	for (int )
+    	vector<int> resultsGlobal;
+    	for (int i = 0; i < np; i++) {
+			int procNCar = nbCaracts(i, rows, cols)
+    		if (i != ROOT) {
+				int* procResults = new int[procNCar];
+				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD);
+    		} else { // pas besoin d'envoi: récupérer les résultats locaux
+    			int* procResults = results;
+    		}
+    		resultsGlobal.insert(resulsGlobal.end(), procResults, procResults + procNCar);
+    		delete[] procResults;
+    	}
     }
 	delete[] results;
+	return resultsGlobal;
+}
+
+int main(int argc, char** argv) {
+	// ON RECUPERE L'IMAGE
+	// Check command line args count
+	if(argc!=2){
+		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
+	}
+	// Test if argv[1] is actual file
+//	struct stat buffer;
+//	if (stat(argv[1],&buffer) != 0) {
+//		cerr << "Cannot stat " << argv[1] <<  endl;
+//	}
+	// Lit l'image
+	cv::Mat image = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
+	// Check for invalid input
+	assert(!image.empty());
+
+	// TRAITEMENT DE L'IMAGE
+	// Question 1 : calcul de l'image intégrale en 1 seul parcours
+	// testQ1();
+
+	// Question 2
+	MPI_Init(&argc, &argv);
+	int np=0;
+	MPI_Comm_size(MPI_COMM_WORLD, &np);
+	for (int i = 0; i < 10; i++) {
+		string filename = "/usr/local/INF442-2018/P5/test/neg/im"<<i<<".jpg";
+		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+		vector<vector<int> > I = imageIntegrale(image);
+		caract_mpi(I, i % np);
+	}
+	MPI_Finalize();
+
+	// C'est du MPI je pense...
+	// Il y a 5*11*23 + Somme des carrés jusqu'à 22 (j'ai plus la formule de tete) carrés
+	// Grosso modo à un facteur près c'est du N cube...
+
+	// Question 3 et suivantes
+	// MPI aussi...
 	return 0;
 }

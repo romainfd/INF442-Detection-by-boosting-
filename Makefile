@@ -7,7 +7,7 @@ LIBS = -L /usr/local/opencv-3.4.1/lib64 -lopencv_core -lopencv_imgcodecs -lopenc
 all: q_test
 
 q1: util.o
-	$(CC) -o q1 util.o
+	$(CC) -o q1 util.o $(LIBS)
 
 q_test: img_processing.o q_test.o 
 	$(CC) -o q_test img_processing.o q_test.o $(LIBS)
