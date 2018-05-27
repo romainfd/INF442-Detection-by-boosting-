@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
 
 	// Question 2
 	MPI_Init(&argc, &argv);
-	caract_mpi(I);
+	caract_mpi(I, 0);
 	MPI_Finalize();
 	// C'est du MPI je pense...
 	// Il y a 5*11*23 + Somme des carrés jusqu'à 22 (j'ai plus la formule de tete) carrés
@@ -126,7 +126,7 @@ int nbCaracts(int& rank, int& rows, int& cols) {
 	return 0;
 }
 
-int caract_mpi(vector<vector<int> >& I) {
+int caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	int rows = I.size();
 	int cols = I[0].size();
 
@@ -150,7 +150,11 @@ int caract_mpi(vector<vector<int> >& I) {
 		  }
 	   }
 	}
-	MPI_SEND()
+	// on envoie tous les résultats à la racine pour qu'elle centralise tout
+    MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
+    if (rank == ROOT) {
+    	for (int )
+    }
 	delete[] results;
 	return 0;
 }
