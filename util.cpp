@@ -122,8 +122,14 @@ void testQ1() {
 }
 
 // Cette fonction calcule le nombre de caractéristiques calculées par un processeur de rang rank
-int nbCaracts(int& rank, int& rows, int& cols) {
-	return 0;
+int nbCaracts(int& rank, int& np, int& rows, int& cols, int& deltaSize) {
+    int s = 0;
+    for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
+	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
+		  s += ((rows-n) / deltasize) * ((cols-m) / deltaSize);
+	   }
+	}
+	return s;
 }
 
 vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
@@ -137,7 +143,7 @@ vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 
 	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
-	unsigned int nCar = nbCaracts(rank, rows, cols);
+	unsigned int nCar = nbCaracts(rank, np, rows, cols, deltaSize);
 	int* results = new int[nCar];
 
 	unsigned int i = 0; // notre compteur
@@ -157,7 +163,7 @@ vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
     if (rank == ROOT) {
     	vector<int> resultsGlobal;
     	for (int i = 0; i < np; i++) {
-			int procNCar = nbCaracts(i, rows, cols)
+			int procNCar = nbCaracts(i, np, rows, cols, deltaSize)
     		if (i != ROOT) {
 				int* procResults = new int[procNCar];
 				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD);
