@@ -17,4 +17,4 @@ q_test: img_processing.o q_test.o
        
 # --- remove binary and executable files
 clean:
-	rm -f q_test *.o
+	rm -f q_test q1 *.o

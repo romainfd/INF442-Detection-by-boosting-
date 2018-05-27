@@ -10,6 +10,18 @@
 #include "img_processing.h"
 using namespace std;
 
+// TO USE to_string
+#include <string>
+#include <sstream>
+template <typename T>
+std::string toString(T val)
+{
+    std::stringstream stream;
+    stream << val;
+    return stream.str();
+}
+
+
 const int deltaSize = 4;
 const int minSize = 8;
 
@@ -126,7 +138,8 @@ int nbCaracts(int& rank, int& rows, int& cols) {
 	return 0;
 }
 
-vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
+vector<int> caract_mpi(vector<vector<int> >& I, int ROOT) {
+	printf("%d", ROOT);
 	int rows = I.size();
 	int cols = I[0].size();
 
@@ -135,6 +148,7 @@ vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	int np=0;
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
+	MPI_Status status;
 
 	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
 	unsigned int nCar = nbCaracts(rank, rows, cols);
@@ -151,20 +165,21 @@ vector<vector<int> > caract_mpi(vector<vector<int> >& I, int& ROOT) {
 	   }
 	}
 	// on envoie tous les résultats à la racine pour qu'elle centralise tout
+	vector<int> resultsGlobal;
 	if (rank != ROOT) {
 		MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
 	}
     if (rank == ROOT) {
-    	vector<int> resultsGlobal;
     	for (int i = 0; i < np; i++) {
-			int procNCar = nbCaracts(i, rows, cols)
+			int procNCar = nbCaracts(i, rows, cols);
+			int* procResults;
     		if (i != ROOT) {
-				int* procResults = new int[procNCar];
-				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD);
+				procResults = new int[procNCar];
+				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
     		} else { // pas besoin d'envoi: récupérer les résultats locaux
-    			int* procResults = results;
+    			procResults= results;
     		}
-    		resultsGlobal.insert(resulsGlobal.end(), procResults, procResults + procNCar);
+    		resultsGlobal.insert(resultsGlobal.end(), procResults, procResults + procNCar);
     		delete[] procResults;
     	}
     }
@@ -197,7 +212,8 @@ int main(int argc, char** argv) {
 	int np=0;
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 	for (int i = 0; i < 10; i++) {
-		string filename = "/usr/local/INF442-2018/P5/test/neg/im"<<i<<".jpg";
+		printf("Hi %d", i);
+		string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
 		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
 		vector<vector<int> > I = imageIntegrale(image);
 		caract_mpi(I, i % np);
