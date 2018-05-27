@@ -134,53 +134,54 @@ void testQ1() {
 }
 
 // Cette fonction calcule le nombre de caractéristiques calculées par un processeur de rang rank
-int nbCaracts(int& rank, int& rows, int& cols) {
-	return 0;
+int nbCaracts(int& rank, int& np, int& rows, int& cols) {
+    int s = 0;
+    for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
+	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
+		  s += ((rows-n) / deltaSize) * ((cols-m) / deltaSize);
+	   }
+	}
+	return s;
 }
 
-vector<int> caract_mpi(vector<vector<int> >& I, int ROOT) {
+vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
 	printf("%d", ROOT);
 	int rows = I.size();
 	int cols = I[0].size();
 
-	// MPI: rank and process number
-	int rank=0;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	int np=0;
-	MPI_Comm_size(MPI_COMM_WORLD, &np);
+	// MPI: Init
 	MPI_Status status;
 
 	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
-	unsigned int nCar = nbCaracts(rank, rows, cols);
+	unsigned int nCar = nbCaracts(rank, np, rows, cols);
 	int* results = new int[nCar];
 
 	unsigned int i = 0; // notre compteur
 	for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
 	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
-		  for (unsigned int x = 0; x < rows - n; x++) {
-			  for (unsigned int y = 0; y < cols - m; y++) {
+		  for (unsigned int x = 0; x < rows - n; x += deltaSize) {
+			  for (unsigned int y = 0; y < cols - m; y += deltaSize) {
 				  results[i++] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] - I[x][y];
-			  }
-		  }
-	   }
+				}
+			}
+		}
 	}
 	// on envoie tous les résultats à la racine pour qu'elle centralise tout
 	vector<int> resultsGlobal;
 	if (rank != ROOT) {
 		MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
-	}
-    if (rank == ROOT) {
+	} else {
     	for (int i = 0; i < np; i++) {
-			int procNCar = nbCaracts(i, rows, cols);
-			int* procResults;
+			int* procResults = results; // si on est le bon proc, inutile de communiquer
+			int procNCar = nbCaracts(i, np, rows, cols);
     		if (i != ROOT) {
 				procResults = new int[procNCar];
 				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
-    		} else { // pas besoin d'envoi: récupérer les résultats locaux
-    			procResults= results;
     		}
     		resultsGlobal.insert(resultsGlobal.end(), procResults, procResults + procNCar);
-    		delete[] procResults;
+    		if (i != ROOT) {
+    			delete[] procResults;
+    		}
     	}
     }
 	delete[] results;
@@ -211,12 +212,21 @@ int main(int argc, char** argv) {
 	MPI_Init(&argc, &argv);
 	int np=0;
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
+	int rank=0;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	for (int i = 0; i < 10; i++) {
-		printf("Hi %d", i);
-		string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
-		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
-		vector<vector<int> > I = imageIntegrale(image);
-		caract_mpi(I, i % np);
+		if (i % np == rank) {
+			printf("Hi1 %d\n", i);
+			string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+			printf("Hi2 %d\n", i);
+			cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+			printf("Hi3 %d\n", i);
+			vector<vector<int> > I = imageIntegrale(image);
+			printf("Hi4 %d %d\n", i, i%np);
+			//displayMatrix(I);
+			vector<int> cars = caract_mpi(I, i%np, rank, np);
+			printf("Hi5 %d\n", i);
+		}
 	}
 	MPI_Finalize();
 
