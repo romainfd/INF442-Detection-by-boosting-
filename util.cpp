@@ -7,8 +7,13 @@
 //============================================================================
 #include <iostream>
 #include <vector>
-#include "img_processing.h"
+#include <assert.h>
+#include <mpi.h>
+#include <opencv2/opencv.hpp>
 using namespace std;
+
+const int deltaSize = 4;
+const int minSize = 8;
 
 // Affichage d'une matrice de façon alignée pour des valeurs entre -9 et 99
 void displayMatrix(vector<vector<int> >& matrix) {
@@ -87,7 +92,7 @@ vector<vector<int> > imageIntegraleTest(vector<vector<int> >& img) {
 	return I;
 }
 
-int main(int argc, char** argv) {
+int testQ1() {
 	// To test locally, we initiate an small image
 	vector<vector<int> > image;
 	vector<int> ligne1{ 1,  1, -1};
@@ -101,11 +106,37 @@ int main(int argc, char** argv) {
 
 	// TRAITEMENT DE L'IMAGE
 	// Question 1 : calculde l'image intégrale en 1 seul parcours
+	vector<vector<int> > I = imageIntegraleTest(image);
+	cout<<"Image intégrale:"<<endl;
+	displayMatrix(I);
+}
+
+int main(int argc, char** argv) {
+	// ON RECUPERE L'IMAGE
+	// Check command line args count
+	if(argc!=2){
+		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
+	}
+	// Test if argv[1] is actual file
+	struct stat buffer;
+	if (stat(argv[1],&buffer) != 0) {
+		cerr << "Cannot stat " << argv[1] <<  endl;
+	}
+	// Lit l'image
+	Mat image = imread(filename,IMREAD_GRAYSCALE);
+	// Check for invalid input
+	assert(!image.empty());
+
+	// TRAITEMENT DE L'IMAGE
+	// Question 1 : calcul de l'image intégrale en 1 seul parcours
 	vector<vector<int> > I = imageIntegrale(image);
 	cout<<"Image intégrale:"<<endl;
 	displayMatrix(I);
 
 	// Question 2
+	MPI_Init(&argc, &argv);
+	caract_mpi(I);
+	MPI_Finalize();
 	// C'est du MPI je pense...
 	// Il y a 5*11*23 + Somme des carrés jusqu'à 22 (j'ai plus la formule de tete) carrés
 	// Grosso modo à un facteur près c'est du N cube...
@@ -115,33 +146,36 @@ int main(int argc, char** argv) {
 	return 0;
 }
 
+// Cette fonction calcule le nombre de caractéristiques calculées par un processeur de rang rank
+int nbCaracts(int& rank, int& rows, int& cols) {
+	return 0;
+}
+
 int caract_mpi(vector<vector<int> >& I) {
 	int rows = I.size();
 	int cols = I[0].size();
 
 	// MPI: rank and process number
-	MPI_Init(&argc, &argv);
 	int rank=0;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	int np=0;
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 
 	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
-	unsigned int n = 0;
-	int* results = new int[n];
+	unsigned int nCar = nbCaracts(rank, rows, cols);
+	int* results = new int[nCar];
 
-	unsigned int i = 0;
-	for (unsigned int n = 8 + 4*rank; n < rows; n += 4 * np ) {
-	  for (unsigned int m = 8 + 4*rank; m < cols; m += 4 * np) {
+	unsigned int i = 0; // notre compteur
+	for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
+	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
 		  for (unsigned int x = 0; x < rows - n; x++) {
 			  for (unsigned int y = 0; y < cols - m; y++) {
 				  results[i++] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] - I[x][y];
 			  }
 		  }
-	  }
+	   }
 	}
-
-	MPI_Finalize();
+	MPI_SEND()
 	delete[] results;
 	return 0;
 }
