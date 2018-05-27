@@ -26,7 +26,10 @@ const int deltaSize = 4;
 const int minSize = 8;
 
 // EXECUTION
-// LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 q1 /usr/local/INF442-2018/P5/test/neg/im0.jpg
+// make clean
+// make q1
+// LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 q1
+// /usr/local/INF442-2018/P5/test/neg/im0.jpg
 
 
 // Affichage d'une matrice de façon alignée pour des valeurs entre -9 et 99
@@ -161,7 +164,8 @@ vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
 	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
 		  for (unsigned int x = 0; x < rows - n; x += deltaSize) {
 			  for (unsigned int y = 0; y < cols - m; y += deltaSize) {
-				  results[i++] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] - I[x][y];
+				  results[i] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] + I[x][y];
+				   i++;
 				}
 			}
 		}
@@ -199,10 +203,6 @@ int main(int argc, char** argv) {
 //	if (stat(argv[1],&buffer) != 0) {
 //		cerr << "Cannot stat " << argv[1] <<  endl;
 //	}
-	// Lit l'image
-	cv::Mat image = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
-	// Check for invalid input
-	assert(!image.empty());
 
 	// TRAITEMENT DE L'IMAGE
 	// Question 1 : calcul de l'image intégrale en 1 seul parcours
@@ -215,18 +215,18 @@ int main(int argc, char** argv) {
 	int rank=0;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	for (int i = 0; i < 10; i++) {
-		if (i % np == rank) {
-			printf("Hi1 %d\n", i);
-			string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
-			printf("Hi2 %d\n", i);
-			cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
-			printf("Hi3 %d\n", i);
-			vector<vector<int> > I = imageIntegrale(image);
-			printf("Hi4 %d %d\n", i, i%np);
-			//displayMatrix(I);
-			vector<int> cars = caract_mpi(I, i%np, rank, np);
-			printf("Hi5 %d\n", i);
-		}
+		printf("Hi1 %d\n", i);
+		string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+		printf("Hi2 %d\n", i);
+		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+		// Check for invalid input
+		assert(!image.empty());
+		printf("Hi3 %d\n", i);
+		vector<vector<int> > I = imageIntegrale(image);
+		printf("Hi4 %d %d\n", i, i%np);
+		//displayMatrix(I);
+		vector<int> cars = caract_mpi(I, i%np, rank, np);
+		printf("Hi5 %d\n", i);
 	}
 	MPI_Finalize();
 
