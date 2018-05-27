@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : PI.cpp
+// Name        : util.cpp
 // Author      : Antoine Grosnit and Romain Fouilland
 // Version     :
 // Copyright   : Work of Antoine Grosnit and Romain Fouilland
@@ -86,5 +86,36 @@ int main(int argc, char** argv) {
 
 	// Question 3 et suivantes
 	// MPI aussi...
+	return 0;
+}
+
+int caract_mpi(vector<vector<int> >& I) {
+	int rows = I.size();
+	int cols = I[0].size();
+
+	// MPI: rank and process number
+	MPI_Init(&argc, &argv);
+	int rank=0;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int np=0;
+	MPI_Comm_size(MPI_COMM_WORLD, &np);
+
+	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
+	unsigned int n = 0;
+	int* results = new int[n];
+
+	unsigned int i = 0;
+	for (unsigned int n = 8 + 4*rank; n < rows; n += 4 * np ) {
+	  for (unsigned int m = 8 + 4*rank; m < cols; m += 4 * np) {
+		  for (unsigned int x = 0; x < rows - n; x++) {
+			  for (unsigned int y = 0; y < cols - m; y++) {
+				  results[i++] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] - I[x][y];
+			  }
+		  }
+	  }
+	}
+
+	MPI_Finalize();
+	delete[] results;
 	return 0;
 }
