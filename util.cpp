@@ -38,7 +38,34 @@ vector<vector<int> > emptyMatrix(int& l, int& c) {
 	return matrix;
 }
 
-vector<vector<int> > imageIntegrale(vector<vector<int> >& img) {
+vector<vector<int> > imageIntegraleTest(Mat& img) {
+	// on crée 2 matrices vides pour contenir les sommes sur les colonnes et les sommes intégrales
+	int r = img.rows;
+	int c = img.cols;
+	vector<vector<int> > s = emptyMatrix(r, c);
+	vector<vector<int> > I = emptyMatrix(r, c);
+
+	// initialisation de la premiere colonne
+	I[0][0] = (int)image.at<uchar>(0,0);
+	s[0][0] = (int)image.at<uchar>(0,0);
+	for (unsigned int y = 1; y < r; y++) {
+		s[y][0] = s[y-1][0] + (int)image.at<uchar>(y,0); // comme pour x>=1 pour s
+		I[y][0] = s[y][0];
+	}
+	for (unsigned int x = 1; x < c; x++) {
+		// initialisation de la première ligne
+		s[0][x] = (int)image.at<uchar>(0,x);
+		I[0][x] = I[0][x-1] + (int)image.at<uchar>(0,x); // comme pour y>=1 pour I
+
+		for (unsigned int y = 1; y < r; y++) {
+			s[y][x] = s[y-1][x] + (int)image.at<uchar>(y,x);
+			I[y][x] = I[y][x-1] + s[y][x];
+		}
+	}
+	return I;
+}
+
+vector<vector<int> > imageIntegraleTest(vector<vector<int> >& img) {
 	// on crée 2 matrices vides pour contenir les sommes sur les colonnes et les sommes intégrales
 	int l = img.size();
 	int c = img[0].size();
@@ -62,8 +89,6 @@ vector<vector<int> > imageIntegrale(vector<vector<int> >& img) {
 			I[y][x] = I[y][x-1] + s[y][x];
 		}
 	}
-	// delete s; // on efface l'espace mémoire créé pour s
-	// Faut-il delete chaque ligne ?
 	return I;
 }
 
