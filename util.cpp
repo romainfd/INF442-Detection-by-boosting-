@@ -147,6 +147,17 @@ int nbCaracts(int& rank, int& np, int& rows, int& cols) {
 	return s;
 }
 
+// Cette fonction calcule le nombre de caractéristiques calculées au total
+int nbCaractsTot(int rows, int cols) {
+    int s = 0;
+    for (unsigned int n = minSize; n < rows; n += deltaSize ) {
+	  for (unsigned int m = minSize; m < cols; m += deltaSize) {
+		  s += ((rows-n) / deltaSize) * ((cols-m) / deltaSize);
+	   }
+	}
+	return s;
+}
+
 vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np, vector<double>& w1, vector<double>& w2, vector<double>& delta1, vector<double>& delta2, double& epsilon, int category) {
 	printf("%d", ROOT);
 	int rows = I.size();
@@ -167,17 +178,13 @@ vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np, ve
 		  for (unsigned int x = 0; x < rows - n; x += deltaSize) {
 			  for (unsigned int y = 0; y < cols - m; y += deltaSize) {
 				  results[i] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] + I[x][y];
-				  h = (int) (w1[i]*results[i] + w2[i] >= 0);
-				  h = 2 * h - 1;
-				  d1[i]= epsilon * (h - category) * results[i];
-				  d2[i]= epsilon * (-1 - category);
 				  i++;
 				}
 			}
 		}
 	}
 	// on envoie tous les résultats à la racine pour qu'elle centralise tout
-	vector<int> resultsGlobal
+	vector<int> resultsGlobal;
 	if (rank != ROOT) {
 		MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
 		MPI_Send(d1, nCar, MPI_DOUBLE, ROOT, 0, MPI_COMM_WORLD);
@@ -215,9 +222,9 @@ vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np, ve
 int main(int argc, char** argv) {
 	// ON RECUPERE L'IMAGE
 	// Check command line args count
-	if(argc!=2){
-		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
-	}
+//	if(argc!=2){
+//		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
+//	}
 	// Test if argv[1] is actual file
 //	struct stat buffer;
 //	if (stat(argv[1],&buffer) != 0) {
@@ -236,13 +243,14 @@ int main(int argc, char** argv) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	//initialisation commune de la seed
 	unsigned int seed = 0;
+    srand(s);
     unsigned int K = 10;
     double epsilon;
-    int nbC = // déterminer le nombre de caractéristiques pour initialiser w1 et w2
-    vector<double> w1;
-    vector<double> w2;
-    vector<double> delta1;
-    vector<double> delta2;
+    int nbC = nbCaractsTot(92, 112); // déterminer le nombre de caractéristiques pour initialiser w1 et w2
+    vector<double> w1(nbC);
+    vector<double> w2(nbC);
+    vector<double> delta1(nbC);
+    vector<double> delta2(nbC);
     double globD1;
     double globD2;
     int category;
@@ -254,6 +262,7 @@ int main(int argc, char** argv) {
         delta2[i] = 0.;
     }
 	for (int i = 0; i < K; i++) {
+		// pas fait avant la npè boucle
         if((i > 1) && (i%np == 0)){ //une fois que tous les processus ont calculé une variation de w1 et w2 on met à jour w1 et w2
                 if(rank == 0){
                     for(int j = 0; j < nbC; j++){
@@ -267,24 +276,29 @@ int main(int argc, char** argv) {
                 }
 
         }
-        srand(s);
-        if(s < 1/2) {
+        // On choisit d'abord le type (pos/neg) puis l'image
+        // il faut la meme seed pour tous pour être sur qu'il ait la meme image
+        string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+        if(rand() / double(RAND_MAX) < 1/2) {
             //choisir fichier au hasard dans la classe +1
-            //string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+            // filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
             category = 1;
         } else {
             //choisir fichier au hasard dans la classe -1
-            //string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+            // filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
             category = -1;
         }
+        // on charge l'image choisie
 		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
 		// Check for invalid input
 		assert(!image.empty());
+		// on calcule LOCALEMENT l'image intégrale
 		vector<vector<int> > I = imageIntegrale(image);
-		printf("Hi4 %d %d\n", i, i%np);
+		printf("Processus %d in loop %d is going to compute the caracts of the image %s\n", rank, i, filename.c_str());
 		//displayMatrix(I);
+		// On calcule toutes les caractéristiques et on les centralise dans le processus i%np
 		vector<int> cars = caract_mpi(I, i%np, rank, np, w1, w2, delta1, delta2, epsilon, category);
-		printf("Hi5 %d\n", i);
+		printf("Processus %d in loop %d has centralized all the caracteristics for image %s\n", rank, i, filename.c_str());
 	}
 	MPI_Finalize();
 
