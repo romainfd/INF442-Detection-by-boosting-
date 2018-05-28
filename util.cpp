@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include "img_processing.h"
+#include "math.h"
 #include "dirent.h"
 using namespace std;
 
@@ -22,6 +23,8 @@ std::string toString(T val)
     return stream.str();
 }
 
+// infinity
+double infinity = 1E+30;
 
 const int deltaSize = 4;
 const int minSize = 8;
@@ -201,7 +204,7 @@ vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
 	return resultsGlobal;
 }
 
-void printline(string name, double* ligne, int len) {
+template<typename T> void printline(string name, T* ligne, int len) {
 	cout << name << ":\t";
 	for (int i = 0; i < len; i++) {
 		cout<<ligne[i]<<" ";
@@ -211,17 +214,41 @@ void printline(string name, double* ligne, int len) {
 
 template<typename T> void printlineVect(string name, vector<T>& ligne, int len) {
 	cout<<name<<":\t";
+	if (len > ligne.size()) {
+		len = ligne.size(); // no influence outside because len is given by value
+	}
 	for (int i = 0; i < len; i++) {
 		cout<<ligne[i]<<" ";
 	}
 	cout<<endl;
 }
 
+int error(double h, bool cat) {
+	if ((h >= 0 && cat) || (h < 0 && !cat)) {
+		// classifie pos et pos ou classifie neg et neg
+		return 0; // aucune erreur
+	} else {
+		return 1;
+	}
+}
+
+int classifyF(vector<double>& w1F, vector<double>& w2F, vector<int>& carsImg, double& threshold) {
+	double value = 0;
+	for (int c = 0; c < w1F.size(); c++) {
+		value += w1F[c]*carsImg[c] + w2F[c];
+	}
+	if (value >= threshold) {
+		return 1;
+	} else {
+		return -1;
+	}
+}
+
 int main(int argc, char** argv) {
 	// Récupération des images
 	DIR *dir;
 	struct dirent *ent;
-	int nbNeg;
+	int nbNeg = 0;
 	vector<string> images; // on aura nbNeg images neg au debut, suivi des positives
 	if ((dir = opendir (("/usr/local/INF442-2018/P5/"+repo+"/neg/").c_str())) != NULL) {
 		// on enlève . et .. qui ne nous intéressent pas
@@ -287,14 +314,16 @@ int main(int argc, char** argv) {
 	unsigned int seed = 0;
     srand(seed);
     unsigned int K = 0;
-    if (argc >= 2) {
+    double epsilon = 1;
+    if (argc >= 3) {
     	K = atoi(argv[1]);
+    	epsilon = atof(argv[2]);
+    	printf("Epsilon = %f\n", epsilon);
     } else {
-        if(rank==0)cerr << "Please run as: " << endl << "   " << argv[0] << " nbOfImagesUsed" << endl;
+        if(rank==0)cerr << "Please run as: " << endl << "   " << argv[0] << " K epsilon" << endl;
         MPI_Finalize();
         return 0;
     }
-    double epsilon=1;
     int nbC = nbCaractsTot(92, 112); // déterminer le nombre de caractéristiques pour initialiser w1 et w2
     vector<double> w1(nbC);
     vector<double> w2(nbC);
@@ -370,7 +399,7 @@ int main(int argc, char** argv) {
 				  delta1[c]= epsilon * (h - category) * cars[c];
 				  delta2[c]= epsilon * (h - category);
 			}
-			printf("Processus %d in loop %d has centralized all the caracteristics for image %s of category %d and %f%% of classifiers made a correct prediction\n", rank, i, images[imageRank].c_str(), category, double(nbRight)/nbC * 100);
+			printf("Processus %d in loop %d has centralized all the caracteristics for image %s of category %d and %.2f%% of classifiers made a correct prediction\n", rank, i, images[imageRank].c_str(), category, double(nbRight)/nbC * 100);
 			printline("Delta1", delta1, 20);
 			printline("Delta2", delta2, 20);
 			//printf("Processus %d has computed the delta\n", rank);
@@ -382,7 +411,185 @@ int main(int argc, char** argv) {
 	delete[] globD2;
 
 	// QUESTION 3
+	// We have in w1 and w2 the coefficients of our weak classifiers trained with the perceptron method.
+	// We will now use the bossting method to improve the results of our final classifier.
 
+	// To start with clean processus
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	// We initialize our final classifier at 0
+	vector<double> w1F(nbC);
+	vector<double> w2F(nbC);
+
+	// We get the number of images we want to train on and the number of steps.
+	int n = 0;
+	int N = 0;
+    if (argc >= 5) {
+    	n = atoi(argv[3]);
+    	N = atoi(argv[4]);
+    } else {
+        if(rank==0)cerr << "Please run as: " << endl << "   " << argv[0] << " K epsilon n N" << endl;
+        MPI_Finalize();
+        return 0;
+    }
+
+	// Initialisation
+	if (rank == 0) {
+		cout << " ------------------------------------------------------------ " << endl;
+		cout << " ------------------ LANCEMENT DU BOOSTING ------------------- " << endl;
+		cout << " ------------------------------------------------------------ " << endl;
+	}
+	// we initiate the array for the N values of the coefficient of our final classifier
+	vector<double> alphas(nbC);
+
+    // We find n random images in our database and we store their category.
+    srand(0);
+    vector<string> imagesBoosting(n);
+    vector<bool> cat(n);
+    int imgRank;
+    for (unsigned int i = 0; i < n; i++) {
+    	imgRank = (rand() * images.size())/ RAND_MAX;
+    	imagesBoosting[i] = images[imgRank];
+    	cat[i] = imgRank > nbNeg;
+    }
+    // Rq: it's actually useless to store all the name of the images and we could have directly calculated their caracs as we did for question 2 (ie merge with the next loop directly)
+
+    // We compute all their caracteristics to iterate on all of them for all classifiers later
+    // VERY HEAVY !!!
+    int** carsN = new int*[n];
+    for (int l = 0; l < n; l++) {
+    	carsN[l] = new int[nbC];
+    }
+    string filename;
+    for (int img = 0; img < n; img++) {
+        // on charge l'image n° img
+    	filename = "/usr/local/INF442-2018/P5/"+repo+ (cat[img] ? "/pos/" : "/neg/") + imagesBoosting[img];
+		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+		// Check for invalid input
+		assert(!image.empty());
+		// on calcule LOCALEMENT l'image intégrale
+		vector<vector<int> > I = imageIntegrale(image);
+
+		// puis avec mpi on calcule son vecteur caract et le processus img%np centralise les résultats avant de les renvoyer à tout le monde
+		vector<int> carsImg = caract_mpi(I, img%np, rank, np); // is empty if rank != img%np
+		if (rank == img%np) { // on a les bonnes caracs que l'on stocke pour pouvoir les broadcast
+			for (unsigned int c = 0; c < nbC; c++) {
+				carsN[img][c] = carsImg[c];
+			}
+		}
+		// Probablement facultatif (tant que l'on conserve la meme relation sur les classifieurs traités par un processus (ex: %np = rank))
+		MPI_Bcast(carsN[img], nbC, MPI_INT, img%np, MPI_COMM_WORLD);
+    }
+
+    // We initialise their weigths to 1/n
+    vector<double> weights(n, 1/double(n));
+
+    MPI_Barrier(MPI_COMM_WORLD); // we wait for all the caracteristics to have be computed and be broadcasted to all processus
+    if (rank == 0) {
+    	cout << "All the caracteristics of our boosting images have been computed."<<endl;
+        printline("carsN[0]",carsN[0], 20);
+        printlineVect("weigths",weights, 20);
+    }
+
+	struct { double value; int index; } in, out;
+	for (int l = 0; l < N; l++) {
+		in.value = infinity;
+		double err;
+		in.index = -1;
+		for (int c = 0; c < nbC; c++) {
+			// each processus only focuses on the c%np == rank classifiers
+			if (c % np == rank) {
+				err = 0;
+				// he computes the weighted error for this classifier
+				for (int img = 0; img < n; img++) {
+					err += weights[img]*error(w1[c]*carsN[img][c] + w2[c], cat[img]);
+				}
+				// and compares it to its localMin
+				if (err < in.value) {
+					in.value = err;
+					in.index = c;
+				}
+			}
+		}
+		cout << in.value << endl;
+		cout << in.index << endl;
+		// once they all have done all the classifiers they had to compute the error for, we use Allreduce with minloc to find the best classifier and update the weights and the finalClassifier everywhere
+		MPI_Allreduce((void*) &in, (void*) &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+
+		int k = out.index; // the best classifier
+		// We recompute the error because Allreduce doesn't work
+		double errk = 0;
+		for (int img = 0; img < n; img++) {
+			errk += weights[img]*error(w1[k]*carsN[img][k] + w2[k], cat[img]);
+		}
+
+		if (rank == 0) {
+			printf("the best classifier for this step is %d with an error of %f\n", k, errk);
+		}
+		// We update the weights of the images and the global classifier in EACH processus thanks to the ALLreduce
+		double s = 0; // to normalize
+		for (int img = 0; img < n; img++) {
+			weights[img] *= exp(-(cat[img] ? 1 : -1)*alphas[l]*((w1[k]*carsN[img][k] + w2[k] >= 0) ? 1 : -1));
+			s += weights[img];
+		}
+		// Normalisation of the image weights
+		for (int img = 0; img < n; img++) {
+			weights[img] *= 1/s;
+		}
+		// Update of our global classifier
+		double alpha = log((1-errk)/errk)/2;
+		alphas[k] += alpha; // += because it could already have been taken before
+		w1F[k] += alpha * w1[k];
+		w2F[k] += alpha * w2[k];
+	}
+	delete[] carsN;
+
+	// We get the number of images we want to train on and the number of steps.
+	double theta = 0;
+    if (argc >= 6) {
+    	theta = atof(argv[5]);
+    } else {
+        if(rank==0)cerr << "Please run as: " << endl << "   " << argv[0] << " K epsilon n N theta" << endl;
+        MPI_Finalize();
+        return 0;
+    }
+
+	// We have our final classifier whih is a linear combination of the best weak classifiers of the perceptron method found with the boosting method in w1F, w2F
+	// and alphas are the coefficient of the linear combination
+	double threshold = 0;
+	for (int c = 0; c < nbC; c++) {
+		threshold += alphas[c];
+	}
+	threshold *= theta;
+
+	// we can classify an image with classifyF(w1F, w2F, cars, threshold);
+	// and we compute the cars of the images in Test with caracts_mpi in parallel
+    // il faut la meme seed pour tous pour être sur qu'il ait la meme image
+    filename = "/usr/local/INF442-2018/P5/test/neg/im509.jpg";
+    // on choisit au hasard notre image dans toutes celles dispos
+//    int imageRank = (rand() * images.size())/ RAND_MAX;
+//    if (imageRank < nbNeg) {
+//    	// on a une image négative !
+//        filename = "/usr/local/INF442-2018/P5/"+repo+"/neg/" + images[imageRank];
+//        category = -1;
+//    } else {
+//        // choisir fichier au hasard dans la classe -1
+//        filename = "/usr/local/INF442-2018/P5/"+repo+"/pos/" + images[imageRank];
+//        category = 1;
+//    }
+    // on charge l'image choisie
+	cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+	// Check for invalid input
+	assert(!image.empty());
+	// on calcule LOCALEMENT l'image intégrale
+	vector<vector<int> > I = imageIntegrale(image);
+	// printf("Processus %d in loop %d is going to compute the caracts of the image %s of category %d\n", rank, i, images[imageRank].c_str(), category);
+	//displayMatrix(I);
+	// On calcule toutes les caractéristiques et on les centralise dans le processus i%np
+	vector<int> cars = caract_mpi(I, 0, rank, np);
+	if (rank == 0) {
+		cout << classifyF(w1F, w2F, cars, threshold) << endl;
+	}
 	MPI_Finalize();
 	return 0;
 }
