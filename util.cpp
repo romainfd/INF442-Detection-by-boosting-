@@ -29,6 +29,7 @@ double infinity = 1E+30;
 const int deltaSize = 4;
 const int minSize = 8;
 const string repo = "app";
+const string repo2 = "test";
 
 // EXECUTION
 // make clean
@@ -562,34 +563,100 @@ int main(int argc, char** argv) {
 	}
 	threshold *= theta;
 
-	// we can classify an image with classifyF(w1F, w2F, cars, threshold);
-	// and we compute the cars of the images in Test with caracts_mpi in parallel
-    // il faut la meme seed pour tous pour être sur qu'il ait la meme image
-    filename = "/usr/local/INF442-2018/P5/test/neg/im509.jpg";
-    // on choisit au hasard notre image dans toutes celles dispos
-//    int imageRank = (rand() * images.size())/ RAND_MAX;
-//    if (imageRank < nbNeg) {
-//    	// on a une image négative !
-//        filename = "/usr/local/INF442-2018/P5/"+repo+"/neg/" + images[imageRank];
-//        category = -1;
-//    } else {
-//        // choisir fichier au hasard dans la classe -1
-//        filename = "/usr/local/INF442-2018/P5/"+repo+"/pos/" + images[imageRank];
-//        category = 1;
-//    }
-    // on charge l'image choisie
-	cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
-	// Check for invalid input
-	assert(!image.empty());
-	// on calcule LOCALEMENT l'image intégrale
-	vector<vector<int> > I = imageIntegrale(image);
-	// printf("Processus %d in loop %d is going to compute the caracts of the image %s of category %d\n", rank, i, images[imageRank].c_str(), category);
-	//displayMatrix(I);
-	// On calcule toutes les caractéristiques et on les centralise dans le processus i%np
-	vector<int> cars = caract_mpi(I, 0, rank, np);
-	if (rank == 0) {
-		cout << classifyF(w1F, w2F, cars, threshold) << endl;
+	DIR *dirT;
+	struct dirent *entT;
+	nbNeg = 0;
+	vector<string> imagesTest; // on aura nbNeg images neg au debut, suivi des positives
+	if ((dirT = opendir (("/usr/local/INF442-2018/P5/"+repo2+"/neg/").c_str())) != NULL) {
+		// on enlève . et .. qui ne nous intéressent pas
+		readdir(dirT);
+		readdir(dirT);
+		/* gets all the images in the directory */
+		while ((ent = readdir (dirT)) != NULL) {
+			imagesTest.push_back(ent->d_name);
+			nbNeg++;
+		}
+		closedir (dirT);
+	} else {
+		/* could not open directory */
+		perror ("");
+		return EXIT_FAILURE;
 	}
+	if ((dirT = opendir (("/usr/local/INF442-2018/P5/"+repo2+"/pos/").c_str())) != NULL) {
+		readdir(dirT);
+		readdir(dirT);
+		/* gets all the images in the directory */
+		while ((entT = readdir (dirT)) != NULL) {
+			imagesTest.push_back(entT->d_name);
+		}
+		closedir (dirT);
+	} else {
+		/* could not open directory */
+		perror ("");
+		return EXIT_FAILURE;
+	}
+
+	//On considere tp (True positive) tn (true negative) fp (false positive) fn (false negative) pour la série de test
+	int tp = 0;
+	int tn = 0;
+	int fp = 0;
+	int fn = 0;
+
+	int tpLoc = 0;
+	int tnLoc = 0;
+	int fpLoc = 0;
+	int fnLoc = 0;
+
+	for (int imageRank = 0; imageRank < imagesTest.size(); imageRank++) {
+		if (imageRank < nbNeg) {
+			// on a une image négative
+			filename = "/usr/local/INF442-2018/P5/test/neg/" + imagesTest[imageRank];
+			category = -1;
+		} else {
+			// on a une image positive
+			filename = "/usr/local/INF442-2018/P5/test/pos/" + imagesTest[imageRank];
+			category = 1;
+		}
+		// on charge l'image choisie
+		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+		// Check for invalid input
+		assert(!image.empty());
+		// on calcule LOCALEMENT l'image intégrale
+		vector<vector<int> > I = imageIntegrale(image);
+		// On calcule toutes les caractéristiques et on les centralise dans le processus 0
+		vector<int> cars = caract_mpi(I, imageRank%np, rank, np);
+		// Update caracteristics
+		if (rank == imageRank%np) { // thanks to this condition cars is not empty
+			printlineVect("caracts", cars, 20);
+			// computing the category associated to cars with the F-classifier
+			int result = classifyF(w1F, w2F, cars, threshold);
+			if (category == 1){
+				if (result == category){
+					tpLoc += 1;
+				} else {
+					fnLoc += 1;
+				}
+			} else {
+				if (result == category){
+					tnLoc += 1;
+				} else {
+					fpLoc += 1;
+				}
+			}
+		}
+	}
+
+	MPI_Reduce(&tpLoc, &tp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&tnLoc, &tn, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&fpLoc, &fp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&fnLoc, &fn, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+	if(rank == 0){
+		cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
+		cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
+	}
+
 	MPI_Finalize();
+
 	return 0;
 }
