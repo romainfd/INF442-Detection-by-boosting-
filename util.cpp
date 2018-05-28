@@ -147,7 +147,7 @@ int nbCaracts(int& rank, int& np, int& rows, int& cols) {
 	return s;
 }
 
-vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
+vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np, vector<double>& w1, vector<double>& w2, vector<double>& delta1, vector<double>& delta2, double& epsilon, int category) {
 	printf("%d", ROOT);
 	int rows = I.size();
 	int cols = I[0].size();
@@ -158,33 +158,53 @@ vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
 	// On calcule le nb d'image à calculer pour ce processeur afin d'initialiser un tableau à la bonne taille
 	unsigned int nCar = nbCaracts(rank, np, rows, cols);
 	int* results = new int[nCar];
-
+    int* d1 = new int[nCar];
+    int* d2 = new int[nCar];
+    int h;
 	unsigned int i = 0; // notre compteur
 	for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
 	  for (unsigned int m = minSize + deltaSize*rank; m < cols; m += deltaSize * np) {
 		  for (unsigned int x = 0; x < rows - n; x += deltaSize) {
 			  for (unsigned int y = 0; y < cols - m; y += deltaSize) {
 				  results[i] = I[x+n][y+m] - I[x+n][y] - I[x][y+m] + I[x][y];
-				   i++;
+				  h = (int) (w1[i]*results[i] + w2[i] >= 0);
+				  h = 2 * h - 1;
+				  d1[i]= epsilon * (h - category) * results[i];
+				  d2[i]= epsilon * (-1 - category);
+				  i++;
 				}
 			}
 		}
 	}
 	// on envoie tous les résultats à la racine pour qu'elle centralise tout
-	vector<int> resultsGlobal;
+	vector<int> resultsGlobal
 	if (rank != ROOT) {
 		MPI_Send(results, nCar, MPI_INT, ROOT, 0, MPI_COMM_WORLD);
+		MPI_Send(d1, nCar, MPI_DOUBLE, ROOT, 0, MPI_COMM_WORLD);
+		MPI_Send(d2, nCar, MPI_DOUBLE, ROOT, 0, MPI_COMM_WORLD);
 	} else {
+	    delta1.clear();
+	    delta2.clear();
     	for (int i = 0; i < np; i++) {
 			int* procResults = results; // si on est le bon proc, inutile de communiquer
+			int* procD1 = d1;
+			int* procD2 = d2;
 			int procNCar = nbCaracts(i, np, rows, cols);
     		if (i != ROOT) {
 				procResults = new int[procNCar];
+				procD1 = new int[procNCar];
+				procD2 = new int[procNCar];
 				MPI_Recv(procResults, procNCar, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(procD1, procNCar, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(procD2, procNCar, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &status);
     		}
     		resultsGlobal.insert(resultsGlobal.end(), procResults, procResults + procNCar);
+    		delta1.insert(delta1.end(), procD1, procD1 + procNCar);
+    		delta2.insert(delta2.end(), procD2, procD2 + procNCar);
     		if (i != ROOT) {
     			delete[] procResults;
+    			delete[] procD1;
+    			delete[] procD2;
     		}
     	}
     }
@@ -214,18 +234,56 @@ int main(int argc, char** argv) {
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 	int rank=0;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	for (int i = 0; i < 10; i++) {
-		printf("Hi1 %d\n", i);
-		string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
-		printf("Hi2 %d\n", i);
+	//initialisation commune de la seed
+	unsigned int seed = 0;
+    unsigned int K = 10;
+    double epsilon;
+    int nbC = // déterminer le nombre de caractéristiques pour initialiser w1 et w2
+    vector<double> w1;
+    vector<double> w2;
+    vector<double> delta1;
+    vector<double> delta2;
+    double globD1;
+    double globD2;
+    int category;
+    //initialiser w1 et w2
+    for (int i = 0; i < nbC; i++){
+        w1[i] = 1.;
+        w2[i] = 0.;
+        delta1[i] = 0.;
+        delta2[i] = 0.;
+    }
+	for (int i = 0; i < K; i++) {
+        if((i > 1) && (i%np == 0)){ //une fois que tous les processus ont calculé une variation de w1 et w2 on met à jour w1 et w2
+                if(rank == 0){
+                    for(int j = 0; j < nbC; j++){
+                        MPI_Reduce (&delta1[j], &globD1, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+                        MPI_Reduce (&delta2[j], &globD2, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+                        w1[j] -= globD1;
+                        w2[j] -= globD2;
+                        MPI_Bcast (&w1[j], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                        MPI_Bcast (&w2[j], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                    }
+                }
+
+        }
+        srand(s);
+        if(s < 1/2) {
+            //choisir fichier au hasard dans la classe +1
+            //string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+            category = 1;
+        } else {
+            //choisir fichier au hasard dans la classe -1
+            //string filename = "/usr/local/INF442-2018/P5/test/neg/im0.jpg";
+            category = -1;
+        }
 		cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
 		// Check for invalid input
 		assert(!image.empty());
-		printf("Hi3 %d\n", i);
 		vector<vector<int> > I = imageIntegrale(image);
 		printf("Hi4 %d %d\n", i, i%np);
 		//displayMatrix(I);
-		vector<int> cars = caract_mpi(I, i%np, rank, np);
+		vector<int> cars = caract_mpi(I, i%np, rank, np, w1, w2, delta1, delta2, epsilon, category);
 		printf("Hi5 %d\n", i);
 	}
 	MPI_Finalize();
