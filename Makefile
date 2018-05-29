@@ -4,10 +4,8 @@ CFLAGS= -O3 -I /usr/local/opencv-3.4.1/include
 LIBS = -L /usr/local/opencv-3.4.1/lib64 -lopencv_core -lopencv_imgcodecs -lopencv_highgui
 
 # --- targets
-all: q_test
-
-q1: util.o
-	$(CC) -o q1 util.o $(LIBS)
+all: boostingDetection.o
+	$(CC) -o boostingDetection util.o $(LIBS)
 
 q_test: img_processing.o q_test.o 
 	$(CC) -o q_test img_processing.o q_test.o $(LIBS)
