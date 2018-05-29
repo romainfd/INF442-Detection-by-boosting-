@@ -14,7 +14,7 @@ To try our program, you can do
 - Then open a command line and write
 ```
 make
-LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.00000003475 200 200 0 1
+LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.00000003475 200 20 0 1
 ```
 *You may have to change the two first paths to match your computer set up*
 - You can display more informations with an optional additionnal parameter (at the end):
@@ -24,7 +24,7 @@ LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpiru
 4 displays some debug informations.
 - For instance, to see all the availble informations (this might be very long as it prints some big matrices), you can do 
 ```
-LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.00000003475 200 200 0 1 4
+LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.00000003475 200 20 0 1 4
 ```
 - The other parameters match those of the algorithms explained above :
 ```
@@ -34,6 +34,6 @@ where theta is a threshold for our final classifier and normalisation multiplies
 
 - This configuration gives us a F-score of 0.444 on our image database.
 ```
-LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.1 200 200 0 0.001 1
+LD_LIBRARY_PATH=/usr/local/opencv-3.4.1/lib64 /usr/local/openmpi-3.0.1/bin/mpirun -np 4 boostingDetection 2000 0.1 200 20 0 0.001 1
 ```
 
