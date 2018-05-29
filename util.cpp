@@ -160,6 +160,32 @@ int nbCaractsTot(int rows, int cols) {
 	return s;
 }
 
+vector<int> findCaract(int ind, int& minsize, int& deltasize, int& np, int& rows, int& cols){ //renvoie [row, col, size] correspondant à l'emplacement de la caractéristique d'indice ind
+	int rank = 0;
+	int s = 0;
+	vector<int> coord(3);
+	while(ind >= s + nbCaracts(rank, np, rows, cols)){
+		s += nbCaracts(rank, np, rows, cols);
+		rank++;
+	}
+	ind -= s;
+	rank++;
+	int count = 0;
+	for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
+		for (unsigned int x = 0; x < rows - n; x += deltaSize) {
+			for (unsigned int y = 0; y < cols - n; y += deltaSize) {
+				if(ind == count) {
+					coord[0] = x;
+					coord[1] = y;
+					coord[2] = n;
+					return coord;
+				}
+				count++;
+			}
+		}
+	}
+}
+
 vector<int> caract_mpi(vector<vector<int> >& I, int ROOT, int& rank, int& np) {
 	//printf("Processus %d is computing info for processes %d\n", rank, ROOT);
 	int rows = I.size();
@@ -381,14 +407,14 @@ int main(int argc, char** argv) {
 				double norm1 = norm(formerw1);
 				if(norm1 != 0) {
 					cv1.push_back(normTab(globD1,nbC)/norm1);
-					printf("Evolution 1 : %f \n", normTab(globD1,nbC)/norm1);
+					//printf("Evolution 1 : %f \n", normTab(globD1,nbC)/norm1);
 				} else {
 					cv1.push_back(100);
 				}
 				double norm2 = norm(formerw2);
 				if(norm2 != 0) {
 					cv2.push_back(normTab(globD2,nbC)/norm2);
-					printf("Evolution 2 : %f \n", normTab(globD2,nbC)/norm2);
+					//printf("Evolution 2 : %f \n", normTab(globD2,nbC)/norm2);
 				} else {
 					cv2.push_back(100);
 				}
@@ -442,18 +468,18 @@ int main(int argc, char** argv) {
 			//printf("Processus %d has computed the delta\n", rank);
 		}
 	}
-	if(rank == 0){
+	/*if(rank == 0){ //permet d'afficher l'évolution de ||w_(k+1) - w_k||/||w_k||
 		cout<<"Evolution w1 : [";
-		for(int i = 0; i < cv1.size()-1; i++){
+		for(int i = 1; i < cv1.size()-1; i++){
 			cout<< cv1[i]<<", ";
 		}
 		cout<< cv1[cv1.size()-1] <<"]"<<endl;
 		cout<<"Evolution w2 : [";
-		for(int i = 0; i < cv2.size()-1; i++){
+		for(int i = 1; i < cv2.size()-1; i++){
 			cout<< cv2[i]<<", ";
 		}
 		cout<< cv2[cv2.size()-1] << "]"<<endl;
-	}
+	}*/
 	delete[] delta1;
 	delete[] delta2;
 	delete[] globD1;
@@ -700,8 +726,17 @@ int main(int argc, char** argv) {
 	MPI_Reduce(&fnLoc, &fn, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 	if(rank == 0){
-		//cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
-		//cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
+		double accuracy = (tp+tn)/imagesTest.size();
+		double precision = tp/(double)(tp+fp);
+		double recall = tp/(double)(tp+fn);
+		double Fscore = 2 * precision * recall / (double)(precision + recall);
+		double FPR = fp /(double) (fp + tn);
+		double TPR = tp / (double)(tp + fn);
+		cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
+		cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
+		cout<< "\n[precision, recall, F-score, FPR, TPR] :\n[" << precision << ", " << recall << ", " << Fscore << ", " << FPR << ", " <<
+				TPR << "]" << endl;
+		printlineVect("alphas",alphas,alphas.size());
 	}
 
 	MPI_Finalize();
