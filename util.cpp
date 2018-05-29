@@ -224,6 +224,22 @@ template<typename T> void printlineVect(string name, vector<T>& ligne, int len) 
 	cout<<endl;
 }
 
+double norm(vector<double>& w){
+	double s = 0;
+	for(int i = 0; i< w.size(); i++){
+		s += w[i]*w[i];
+	}
+	return sqrt(s);
+}
+
+double normTab(double w[], int size){
+	double s = 0;
+	for(int i = 0; i< size; i++){
+		s += w[i]*w[i];
+	}
+	return sqrt(s);
+}
+
 int error(double h, bool cat) {
 	if ((h >= 0 && cat) || (h < 0 && !cat)) {
 		// classifie pos et pos ou classifie neg et neg
@@ -306,7 +322,7 @@ int main(int argc, char** argv) {
 		cout << " ------------------ LANCEMENT DU PROGRAMME ------------------ " << endl;
 		cout << " ------------------------------------------------------------ " << endl;
 		printf("We have %d images available (%.2f%% negative)\n", images.size(), (((double)nbNeg)/ (double) images.size()) *100);
-		printlineVect("Images", images, 20);
+		//printlineVect("Images", images, 20);
 	}
 
 
@@ -328,6 +344,10 @@ int main(int argc, char** argv) {
     int nbC = nbCaractsTot(92, 112); // déterminer le nombre de caractéristiques pour initialiser w1 et w2
     vector<double> w1(nbC);
     vector<double> w2(nbC);
+    vector<double> formerw1(nbC);
+    vector<double> formerw2(nbC);
+    vector<double> cv1;
+    vector<double> cv2;
     // variation due à l'apprentissage sur l'image i
     double* delta1 = new double[nbC];
     double* delta2 = new double[nbC];
@@ -350,14 +370,30 @@ int main(int argc, char** argv) {
 			MPI_Allreduce (delta1, globD1, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 			MPI_Allreduce (delta2, globD2, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 			for(int j = 0; j < nbC; j++){
+				formerw1[j]=w1[j];
+				formerw2[j]=w2[j];
 				// on met à jour localement notre wi
 				w1[j] -= globD1[j];
 				w2[j] -= globD2[j];
 			}
 			if (rank == 0) {
 				printf("The %d-th loop has been made. w1 and w2 have been updated to :\n", i/np);
-				printlineVect("w1", w1, 20);
-				printlineVect("w2", w2, 20);
+				double norm1 = norm(formerw1);
+				if(norm1 != 0) {
+					cv1.push_back(normTab(globD1,nbC)/norm1);
+					printf("Evolution 1 : %f \n", normTab(globD1,nbC)/norm1);
+				} else {
+					cv1.push_back(100);
+				}
+				double norm2 = norm(formerw2);
+				if(norm2 != 0) {
+					cv2.push_back(normTab(globD2,nbC)/norm2);
+					printf("Evolution 2 : %f \n", normTab(globD2,nbC)/norm2);
+				} else {
+					cv2.push_back(100);
+				}
+				//printlineVect("w1", w1, 20);
+				//printlineVect("w2", w2, 20);
 				cout << " ------------------------------------------------------------ " << endl;
 			}
         }
@@ -387,7 +423,7 @@ int main(int argc, char** argv) {
 		vector<int> cars = caract_mpi(I, i%np, rank, np);
 		// Update caracteristics
 		if (rank == i%np) { // thanks to this condition cars is not empty
-			printlineVect("caracts", cars, 20);
+			//printlineVect("caracts", cars, 20);
 			// printf("Taille attendue : %d et taille reelle : %d\n", nbC, cars.size());
 			int h;
 			int nbRight = 0;
@@ -401,10 +437,22 @@ int main(int argc, char** argv) {
 				  delta2[c]= epsilon * (h - category);
 			}
 			printf("Processus %d in loop %d has centralized all the caracteristics for image %s of category %d and %.2f%% of classifiers made a correct prediction\n", rank, i, images[imageRank].c_str(), category, double(nbRight)/nbC * 100);
-			printline("Delta1", delta1, 20);
-			printline("Delta2", delta2, 20);
+			//printline("Delta1", delta1, 20);
+			//printline("Delta2", delta2, 20);
 			//printf("Processus %d has computed the delta\n", rank);
 		}
+	}
+	if(rank == 0){
+		cout<<"Evolution w1 : [";
+		for(int i = 0; i < cv1.size()-1; i++){
+			cout<< cv1[i]<<", ";
+		}
+		cout<< cv1[cv1.size()-1] <<"]"<<endl;
+		cout<<"Evolution w2 : [";
+		for(int i = 0; i < cv2.size()-1; i++){
+			cout<< cv2[i]<<", ";
+		}
+		cout<< cv2[cv2.size()-1] << "]"<<endl;
 	}
 	delete[] delta1;
 	delete[] delta2;
@@ -487,9 +535,9 @@ int main(int argc, char** argv) {
 
     MPI_Barrier(MPI_COMM_WORLD); // we wait for all the caracteristics to have be computed and be broadcasted to all processus
     if (rank == 0) {
-    	cout << "All the caracteristics of our boosting images have been computed."<<endl;
-        printline("carsN[0]",carsN[0], 20);
-        printlineVect("weigths",weights, 20);
+    	//cout << "All the caracteristics of our boosting images have been computed."<<endl;
+        //printline("carsN[0]",carsN[0], 20);
+        //printlineVect("weigths",weights, 20);
     }
 
 	struct { double value; int index; } in, out;
@@ -512,8 +560,8 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		cout << in.value << endl;
-		cout << in.index << endl;
+		//cout << in.value << endl;
+		//cout << in.index << endl;
 		// once they all have done all the classifiers they had to compute the error for, we use Allreduce with minloc to find the best classifier and update the weights and the finalClassifier everywhere
 		MPI_Allreduce((void*) &in, (void*) &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
 
@@ -525,7 +573,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (rank == 0) {
-			printf("the best classifier for this step is %d with an error of %f\n", k, errk);
+			//printf("the best classifier for this step is %d with an error of %f\n", k, errk);
 		}
 		// We update the weights of the images and the global classifier in EACH processus thanks to the ALLreduce
 		double s = 0; // to normalize
@@ -627,7 +675,7 @@ int main(int argc, char** argv) {
 		vector<int> cars = caract_mpi(I, imageRank%np, rank, np);
 		// Update caracteristics
 		if (rank == imageRank%np) { // thanks to this condition cars is not empty
-			printlineVect("caracts", cars, 20);
+			//printlineVect("caracts", cars, 20);
 			// computing the category associated to cars with the F-classifier
 			int result = classifyF(w1F, w2F, cars, threshold);
 			if (category == 1){
@@ -652,8 +700,8 @@ int main(int argc, char** argv) {
 	MPI_Reduce(&fnLoc, &fn, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 	if(rank == 0){
-		cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
-		cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
+		//cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
+		//cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
 	}
 
 	MPI_Finalize();
