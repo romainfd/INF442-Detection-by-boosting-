@@ -17,6 +17,9 @@
 
 \begin{document}
 \maketitle
+\section{Informations pratiques}
+Pour faire fonctionner notre programme, il suffit suivre les instructions disponibles dans le fichier readme.md ou de se rendre sur la page GitHub du projet : https://github.com/romainfd/INF442-Detection-by-boosting-/.
+
 \section{Caractéristiques employées}
 \subsection{Calcul de l'image intégrale}
 
@@ -32,6 +35,7 @@ Q2. Nous n’avons considéré ici que des caractéristiques « carré » (ayant
 	&= 5\times\frac{21 \times 22}{2} + \frac{21 \times 22 \times 43}{6} \\
 	&= 4466
 \end{align*}
+Cette valeur a pu être confirmée par la fonction $nbCaractsTot$ du programme.
 
 Le calcul des caractéristiques se fait de façon parallèle avec MPI :\\
 
@@ -58,14 +62,15 @@ Q3. Dans le but d’entraîner nos classifieurs faibles de manière parallèle, 
 Convergence des paramètres en fonction de $K$ et $\epsilon$ :\\
 Nous avons considéré l'évolution des quantités $  \frac{\Vert(w_1^{k+1} - w_1^{k})\Vert}{\Vert w_1^{k})\Vert}$ et $  \frac{\Vert(w_2^{k+1} - w_2^{k})\Vert}{\Vert w_2^{k})\Vert}$ où $\Vert . \Vert$ désigne la norme euclidienne et $w_i^k$ désigne le vecteur $w_i$ à la boucle $k$. On mesure ainsi l'évolution relative des paramètres au cours de leur $K$ $mod$ $p$ mises à jour. 
 
-\begin{itemize}
-	\item  Choix de $K$ : en traçant l'évolution de $  \frac{\Vert(w_2^{k+1} - w_2^{k})\Vert}{\Vert w_2^{k})\Vert}$ pour $K = 200$, $2000$ et $10000$, on constate que cette quantité converge pour différentes valeurs de $\epsilon$ et que le comportement de $  \frac{\Vert(w_1^{k+1} - w_1^{k})\Vert}{\Vert w_1^{k})\Vert}$ est non convergent pour ces trois valeurs de $K$. Il semble donc judicieux de prendre $K$ de l'ordre de $2000$. \\
+\subsection{Choix de $K$}
+En traçant l'évolution de $  \frac{\Vert(w_2^{k+1} - w_2^{k})\Vert}{\Vert w_2^{k})\Vert}$ pour $K = 200$, $2000$ et $10000$, on constate que cette quantité converge pour différentes valeurs de $\epsilon$ et que le comportement de $  \frac{\Vert(w_1^{k+1} - w_1^{k})\Vert}{\Vert w_1^{k})\Vert}$ est non convergent pour ces trois valeurs de $K$. Il semble donc judicieux de prendre $K$ de l'ordre de $2000$ pour limiter le nombre de boucles tout en ayant une convergence suffisante de $w_2$. \\
 
 \includegraphics[width=15cm]{"Fig1 Cv K=200"}\\
 \includegraphics[width=15cm]{"Fig2 Cv K=2000"}\\
 \includegraphics[width=15cm]{"Fig3 Cv K=10000"}\\
 	
-	\item Choix de $\epsilon$ : En raisonnant sur les ordres de grandeurs des paramètres (et notamment de $X_{ki} \sim 10000$) nous avons distingué deux régimes distincts :\\
+\subsection{Choix de $\epsilon$}
+En raisonnant sur les ordres de grandeurs des paramètres (et notamment de $X_{ki} \sim 10000$) nous avons distingué deux régimes distincts :\\
 	
 	\begin{itemize}
 		\item Pour $\epsilon \gg \frac{1}{10000}$ : $w_{i2}$ est de l'ordre de $\epsilon$ et $w_{i1}$ est de l'ordre de $\epsilon \times X_i \sim 10000 \times \epsilon$. Ainsi, $w_{2i}$ ne joue globalement pas de rôle dans la classification qui est déterminée uniquement par le signe de $w_{i1} \gg w_{i2}$. De ce fait, la valeur particulière de $\epsilon$ dans ce régime a très peu d'impact sur le résultat. Etant donnée la variation des valeurs des $X_{ki}$ et de la catégorie de l'image tirée au sort à chaque boucle, la quantité $  \frac{\Vert(w_1^{k+1} - w_1^{k})\Vert}{\Vert w_1^{k})\Vert}$ reste de l'ordre de l'unité quel que soit $K$, et on n'observe pas de convergence.\\
@@ -75,14 +80,12 @@ Nous avons considéré l'évolution des quantités $  \frac{\Vert(w_1^{k+1} - w_
 \includegraphics[width=15cm]{"Fig4 Cv w1 2 regimes"}\\
 
 
-\end{itemize}
-
 Nous essayons donc dans la suite de nous placer à la frontière entre ces deux régimes.\\
 
 \subsection{Boosting des classifieurs faibles}
 
 Q4. Dans cette partie, nous cherchons une combinaison linéaire des classifieurs faibles entraînés dans la première partie.\\
-Pour cela nous itérons à chaque étape sur toutes les images et tous nos classifieurs afin de déterminer le classifieur avec la plus faible erreur pondérée. Nous avons, à ce titre, utilisé $MPI\_MINLOC$ pour déterminer l’indice du meilleur classifieur. A chaque étape, nous avons ensuite mis à jour les poids des images pour rendre moins efficace notre classifieur (on a baissé le poids des images qu'il classait déjà correctement) afin de sélectionner d’autres classifieurs par la suite.\\
+Pour cela nous itérons à chaque étape sur toutes les images et tous nos classifieurs afin de déterminer le classifieur avec la plus faible erreur pondérée. Nous avons, à ce titre, utilisé $MPI\_MINLOC$ pour déterminer l’indice du meilleur classifieur. A chaque étape, nous avons ensuite mis à jour les poids des images pour rendre moins efficace le classifieur faible sélectionné au cours de cette étape (on a baissé le poids des images qu'il classait déjà correctement) afin de sélectionner d’autres classifieurs par la suite.\\
 L’idée est de finalement obtenir une combinaison de classifieurs qui sont efficaces sur l’ensemble des images.\\
 
 Pour mettre en oeuvre cette méthode, nous avons utilisé la fonction $\frac{1}{2}\log(\frac{1-x}{x})$ qui nous permet d'obtenir une nouvelle pondération en fonction de l’erreur pondérée du meilleur classifieur.\\
@@ -91,13 +94,13 @@ Pour mettre en oeuvre cette méthode, nous avons utilisé la fonction $\frac{1}{
 \includegraphics[width=10cm]{"Fig5 alpha"}\\
 \end{center}
 
-Nous voyons que cette fonction change de signe autour d’une erreur de 0.5 et cela a conduit à la limitation du nombre de classifieurs faibles sélectionnés par notre algorithme. En effet, un classifieur avec une erreur un peu plus faible que cette valeur était sélectionné puis, à cause de la modification des poids, il devenait moins efficace et passait à une erreur supérieure à 0.5 et donc, lorsqu’il était repris, on améliorait cette fois ses performances, le faisant à nouveau passer sous la barre de 0.5 d’erreur pondérée. Cette apparition de cycle nous a empêché d’obtenir une combianaison riche de classifieurs puisqu’en général nous avons obtenu moins d’une dizaine de classifieurs, indépendamment de la valeur de N.\\
+Nous voyons que cette fonction change de signe autour d’une erreur de 0.5 et cela a conduit à la limitation du nombre de classifieurs faibles sélectionnés par notre algorithme. En effet, un classifieur avec une erreur un peu plus faible que cette valeur était sélectionné puis, à cause de la modification des poids, il devenait moins efficace et passait à une erreur supérieure à 0.5 et donc, lorsqu’il était repris, on améliorait cette fois ses performances, le faisant à nouveau passer sous la barre de 0.5 d’erreur pondérée. Ce sueil de l'erreur de 0.5 nous a empêché d’obtenir une combinaison riche de classifieurs puisqu’en général nous avons obtenu moins d’une dizaine de classifieurs, indépendamment de la valeur de N.\\
 
 \section{Test du classifieur final}
 
-Q5. Notre classifieur final était très peu sensible à $\theta$. Les paramètres $K=2000$, $epsilon = 0.1$, $n = 200$, $N = 20$, $theta = 0$ et une normalisation de $0.001$ nous ont néanmoins permis d’obtenir un $F-score$ de $0.444$ sur toutes les images du dossier test.\\
+Q5. Notre classifieur final était très peu sensible à $\theta$. Les paramètres $K=2000$, $\epsilon = 0.1$, $n = 200$, $N = 20$, $\theta = 0$ et une normalisation de $0.001$ nous ont néanmoins permis d’obtenir un $F-score$ de $0.444$ sur toutes les images du dossier test.\\
 
-Nous avons cependant été limités dans l’apprentissage par le nombre d’images disponibles, et notamment le fait qu’elles soient identiques dans les 3 doissiers (app, test et dev). Nous aurions peut-être dû passer à des caractéristiques rectangulaires pour obtenir davantage d’informations. Enfin, nous pourrions envisager de diviser la valeur de chaque caractéristique par sa taille afin de normaliser toutes les valeurs et de pouvoir ainsi les comparer entre elles et qu’elles soient toutes de l’ordre de l’unité.
+Nous avons cependant été limités dans l’apprentissage par le nombre d’images disponibles, et notamment le fait qu’elles soient identiques dans les 3 dossiers (app, test et dev). Nous aurions peut-être dû passer à des caractéristiques rectangulaires pour obtenir davantage d’informations. Enfin, nous pourrions envisager de diviser la valeur de chaque caractéristique par sa taille afin de normaliser toutes les valeurs et de pouvoir ainsi les comparer entre elles et qu’elles soient toutes de l’ordre de l’unité (pour que $w_1$ et $w_2$ puissent avoir des influences du même ordre de grandeur (cf. 3.3 Choix de $\expsilon$).
 
 
 \end{document}
