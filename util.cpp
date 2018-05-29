@@ -160,7 +160,7 @@ int nbCaractsTot(int rows, int cols) {
 	return s;
 }
 
-vector<int> findCaract(int ind, int& minsize, int& deltasize, int& np, int& rows, int& cols){ //renvoie [row, col, size] correspondant à l'emplacement de la caractéristique d'indice ind
+vector<int> findCaract(int ind, int& np, int rows, int cols){ //renvoie [row, col, size] correspondant à l'emplacement de la caractéristique d'indice ind
 	int rank = 0;
 	int s = 0;
 	vector<int> coord(3);
@@ -169,7 +169,7 @@ vector<int> findCaract(int ind, int& minsize, int& deltasize, int& np, int& rows
 		rank++;
 	}
 	ind -= s;
-	rank++;
+	// indice est l'indice dans le vecteur des caracts local (du processus rank)
 	int count = 0;
 	for (unsigned int n = minSize + deltaSize*rank; n < rows; n += deltaSize * np ) {
 		for (unsigned int x = 0; x < rows - n; x += deltaSize) {
@@ -288,6 +288,7 @@ int classifyF(vector<double>& w1F, vector<double>& w2F, vector<int>& carsImg, do
 }
 
 int main(int argc, char** argv) {
+	// ETAPE 1 du dossier repo (param global)
 	// Récupération des images
 	DIR *dir;
 	struct dirent *ent;
@@ -321,18 +322,7 @@ int main(int argc, char** argv) {
 		  perror ("");
 		  return EXIT_FAILURE;
 	}
-	// ON RECUPERE L'IMAGE
-	// Check command line args count
-//	if(argc!=2){
-//		cerr << "Please run as: " << endl << "   " << argv[0] << " image_name.jpg" << endl;
-//	}
-	// Test if argv[1] is actual file
-//	struct stat buffer;
-//	if (stat(argv[1],&buffer) != 0) {
-//		cerr << "Cannot stat " << argv[1] <<  endl;
-//	}
 
-	// TRAITEMENT DE L'IMAGE
 	// Question 1 : calcul de l'image intégrale en 1 seul parcours
 	// testQ1();
 
@@ -351,9 +341,9 @@ int main(int argc, char** argv) {
 		//printlineVect("Images", images, 20);
 	}
 
-
-
-	//initialisation commune de la seed
+	// ETAPE 2 : ENTRAINEMENT DES CLASSIFIEURS FAIBLES
+	// Etape 2.a : INITIALISATION
+	//initialisation commune de la seed (pour que tous les processus aient les mêmes images)
 	unsigned int seed = 0;
     srand(seed);
     unsigned int K = 0;
@@ -367,6 +357,8 @@ int main(int argc, char** argv) {
         MPI_Finalize();
         return 0;
     }
+
+    // Initialisation des vecteurs des poids des classifieurs
     int nbC = nbCaractsTot(92, 112); // déterminer le nombre de caractéristiques pour initialiser w1 et w2
     vector<double> w1(nbC);
     vector<double> w2(nbC);
@@ -374,55 +366,23 @@ int main(int argc, char** argv) {
     vector<double> formerw2(nbC);
     vector<double> cv1;
     vector<double> cv2;
-    // variation due à l'apprentissage sur l'image i
+    // variations dues à l'apprentissage sur l'image i
     double* delta1 = new double[nbC];
     double* delta2 = new double[nbC];
-    // variation due a l'apprentissage de tous nos processus en 1 boucle
+    // variations dues a l'apprentissage de tous nos processus en 1 boucle
     double* globD1 = new double[nbC];
     double* globD2 = new double[nbC];
-    int category;
-    //initialiser w1 et w2
+    int category; // de l'image en cours de traitement
+    // We initianilze the values of the coeffs of the classifiers (to 1 and 0) and the variations (to 0)
     for (int i = 0; i < nbC; i++){
         w1[i] = 1.;
         w2[i] = 0.;
         delta1[i] = 0.;
         delta2[i] = 0.;
     }
-	for (int i = 0; i < K; i++) {
-		// pas fait avant la npè boucle
-        if((i > 1) && (i%np == 0)){
-        	//une fois que tous les processus ont calculé une variation de w1 et w2 on met à jour w1 et w2 chez chacun avec AllReduce
-			// on somme tous les apprentissages
-			MPI_Allreduce (delta1, globD1, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-			MPI_Allreduce (delta2, globD2, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-			for(int j = 0; j < nbC; j++){
-				formerw1[j]=w1[j];
-				formerw2[j]=w2[j];
-				// on met à jour localement notre wi
-				w1[j] -= globD1[j];
-				w2[j] -= globD2[j];
-			}
-			if (rank == 0) {
-				printf("The %d-th loop has been made. w1 and w2 have been updated to :\n", i/np);
-				double norm1 = norm(formerw1);
-				if(norm1 != 0) {
-					cv1.push_back(normTab(globD1,nbC)/norm1);
-					//printf("Evolution 1 : %f \n", normTab(globD1,nbC)/norm1);
-				} else {
-					cv1.push_back(100);
-				}
-				double norm2 = norm(formerw2);
-				if(norm2 != 0) {
-					cv2.push_back(normTab(globD2,nbC)/norm2);
-					//printf("Evolution 2 : %f \n", normTab(globD2,nbC)/norm2);
-				} else {
-					cv2.push_back(100);
-				}
-				//printlineVect("w1", w1, 20);
-				//printlineVect("w2", w2, 20);
-				cout << " ------------------------------------------------------------ " << endl;
-			}
-        }
+
+    // Etape 2.b : boucle d'apprentissage des classifieurs
+	for (int i = 0; i < K - (K%np); i++) {
         // On choisit d'abord le type (pos/neg) puis l'image
         // il faut la meme seed pour tous pour être sur qu'il ait la meme image
         string filename = "/usr/local/INF442-2018/P5/"+repo+"/neg/im0.jpg";
@@ -467,8 +427,43 @@ int main(int argc, char** argv) {
 			//printline("Delta2", delta2, 20);
 			//printf("Processus %d has computed the delta\n", rank);
 		}
+		// pas fait avant la npè boucle puis toutes
+        if((i > 0) && ((i+1)%np == 0)){
+        	//une fois que tous les processus ont calculé une variation de w1 et w2 on met à jour w1 et w2 chez chacun avec AllReduce
+			// on somme tous les apprentissages
+			MPI_Allreduce (delta1, globD1, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			MPI_Allreduce (delta2, globD2, nbC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			for(int j = 0; j < nbC; j++){
+				formerw1[j]=w1[j];
+				formerw2[j]=w2[j];
+				// on met à jour localement notre wi
+				w1[j] -= globD1[j];
+				w2[j] -= globD2[j];
+			}
+			if (rank == 0) {
+				printf("The %d-th loop has been made. w1 and w2 have been updated to :\n", i/np);
+				double norm1 = norm(formerw1);
+				if(norm1 != 0) {
+					cv1.push_back(normTab(globD1,nbC)/norm1);
+					//printf("Evolution 1 : %f \n", normTab(globD1,nbC)/norm1);
+				} else {
+					cv1.push_back(100);
+				}
+				double norm2 = norm(formerw2);
+				if(norm2 != 0) {
+					cv2.push_back(normTab(globD2,nbC)/norm2);
+					//printf("Evolution 2 : %f \n", normTab(globD2,nbC)/norm2);
+				} else {
+					cv2.push_back(100);
+				}
+				printlineVect("w1", w1, 20);
+				printlineVect("w2", w2, 20);
+				cout << " ------------------------------------------------------------ " << endl;
+			}
+        }
 	}
-	/*if(rank == 0){ //permet d'afficher l'évolution de ||w_(k+1) - w_k||/||w_k||
+	/*
+	if(rank == 0){ //permet d'afficher l'évolution de ||w_(k+1) - w_k||/||w_k||
 		cout<<"Evolution w1 : [";
 		for(int i = 1; i < cv1.size()-1; i++){
 			cout<< cv1[i]<<", ";
@@ -515,7 +510,7 @@ int main(int argc, char** argv) {
 		cout << " ------------------------------------------------------------ " << endl;
 	}
 	// we initiate the array for the N values of the coefficient of our final classifier
-	vector<double> alphas(nbC);
+	vector<double> alphas(nbC, 0);
 
     // We find n random images in our database and we store their category.
     srand(0);
@@ -602,20 +597,21 @@ int main(int argc, char** argv) {
 			//printf("the best classifier for this step is %d with an error of %f\n", k, errk);
 		}
 		// We update the weights of the images and the global classifier in EACH processus thanks to the ALLreduce
+		// Update of our global classifier
+		double alpha = log((1-errk)/errk)/2;
+		alphas[k] += alpha; // += because it could already have been taken before
+		w1F[k] += alpha * w1[k];
+		w2F[k] += alpha * w2[k];
+		// Update of the image weights to reduce the effectiveness of the selected weak classifier
 		double s = 0; // to normalize
 		for (int img = 0; img < n; img++) {
-			weights[img] *= exp(-(cat[img] ? 1 : -1)*alphas[l]*((w1[k]*carsN[img][k] + w2[k] >= 0) ? 1 : -1));
+			weights[img] *= exp(-(cat[img] ? 1 : -1)*alphas[k]*((w1[k]*carsN[img][k] + w2[k] >= 0) ? 1 : -1));
 			s += weights[img];
 		}
 		// Normalisation of the image weights
 		for (int img = 0; img < n; img++) {
 			weights[img] *= 1/s;
 		}
-		// Update of our global classifier
-		double alpha = log((1-errk)/errk)/2;
-		alphas[k] += alpha; // += because it could already have been taken before
-		w1F[k] += alpha * w1[k];
-		w2F[k] += alpha * w2[k];
 	}
 	delete[] carsN;
 
@@ -636,6 +632,27 @@ int main(int argc, char** argv) {
 		threshold += alphas[c];
 	}
 	threshold *= theta;
+
+	// Etude des classifieurs récupérés
+	if (rank == 0) {
+		double sensitivity = 0.001; // le seuil duquel à partir duquel on considère le classifieur
+		if (argc >= 7) {
+			sensitivity = atof(argv[6]);
+		}
+		for (int c = 0; c < nbC; c++) {
+			if (alphas[c] != 0) {
+				vector<int> shape = findCaract(c, np, 92, 112);
+				printf("La caract (w1 = %f, w2 = %f) part de (%d, %d) et est de taille (%d, %d) et est ponderee avec %.16f\n", w1[c], w2[c], shape[0], shape[1], shape[2], shape[2], alphas[c]);
+			}
+		}
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	// QUESTION 5 : TESTS OF THE FINAL CLASSIFIER
+	if (rank == 0) {
+		cout << " ------------------------------------------------------------ " << endl;
+		cout << " ------------------- LANCEMENT DES TESTS -------------------- " << endl;
+		cout << " ------------------------------------------------------------ " << endl;
+	}
 
 	DIR *dirT;
 	struct dirent *entT;
@@ -736,7 +753,7 @@ int main(int argc, char** argv) {
 		cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
 		cout<< "\n[precision, recall, F-score, FPR, TPR] :\n[" << precision << ", " << recall << ", " << Fscore << ", " << FPR << ", " <<
 				TPR << "]" << endl;
-		printlineVect("alphas",alphas,alphas.size());
+		printlineVect("alphas",alphas,20);
 	}
 
 	MPI_Finalize();
