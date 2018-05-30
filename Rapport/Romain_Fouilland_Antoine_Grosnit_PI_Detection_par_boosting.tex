@@ -97,10 +97,39 @@ Pour mettre en oeuvre cette méthode, nous avons utilisé la fonction $\frac{1}{
 Nous voyons que cette fonction change de signe autour d’une erreur de 0.5 et cela a conduit à la limitation du nombre de classifieurs faibles sélectionnés par notre algorithme. En effet, un classifieur avec une erreur un peu plus faible que cette valeur était sélectionné puis, à cause de la modification des poids, il devenait moins efficace et passait à une erreur supérieure à 0.5 et donc, lorsqu’il était repris, on améliorait cette fois ses performances, le faisant à nouveau passer sous la barre de 0.5 d’erreur pondérée. Ce sueil de l'erreur de 0.5 nous a empêché d’obtenir une combinaison riche de classifieurs puisqu’en général nous avons obtenu moins d’une dizaine de classifieurs, indépendamment de la valeur de N.\\
 
 \section{Test du classifieur final}
+\subsection{Analyse des caractéristiques sélectionnées}
+Notre programme nous permet d'afficher les informations sur les caractéristiques sélectionnées pour le classifieur final. Nous avons pu afficher ces dernières sur un visage pour une commande de $\textit{boostingDetection 2000 0.1 200 20 0 0.001}$. On obtient en sortie les informations relatives aux caractéristiques sélectionnées:
+\begin{center}
+  \includegraphics[width=10cm]{"Caracteristiques"}
+\end{center}
+Reportées sur les images, ces caractéristiques nous donnent les carrés suivants:
+\begin{center}
+  \includegraphics[width=15cm]{"Cars visage"}
+\end{center}
+On peut voir que certains classifieurs sont situées sur des zones qui auraient semblé pertinentes a priori (cependant, ces zones ne sont pas toujours exactement au même endroit sur toutes les images) à savoir l'oeil, les coins des yeux et le sourcil.\\
 
+\subsection{Choix de $\theta$}
 Q5. Notre classifieur final était très peu sensible à $\theta$. Les paramètres $K=2000$, $\epsilon = 0.1$, $n = 200$, $N = 20$, $\theta = 0$ et une normalisation de $0.001$ nous ont néanmoins permis d’obtenir un $F-score$ de $0.444$ sur toutes les images du dossier test.\\
 
-Nous avons cependant été limités dans l’apprentissage par le nombre d’images disponibles, et notamment le fait qu’elles soient identiques dans les 3 dossiers (app, test et dev). Nous aurions peut-être dû passer à des caractéristiques rectangulaires pour obtenir davantage d’informations. Enfin, nous pourrions envisager de diviser la valeur de chaque caractéristique par sa taille afin de normaliser toutes les valeurs et de pouvoir ainsi les comparer entre elles et qu’elles soient toutes de l’ordre de l’unité (pour que $w_1$ et $w_2$ puissent avoir des influences du même ordre de grandeur (cf. 3.3 Choix de $\expsilon$).
+Voici la courbe du $F-score$ en fonction de $\theta$:
+\begin{center}
+  \includegraphics[width=10cm]{"Fscore de theta"}
+\end{center}
+On peut voir qu'une valeur de $\theta$ aux alentours de $-0.4$ semble optimal. On a dans ce cas, 308 vrai positifs contre 252 faux positifs et 4163 vrais négatifs contre 510 faux négatifs.\\
+Le graphe des faux négatifs en fonction des faux positifs pour $\theta$ variant enrte -1 et 1 ne nous apprend pas grand chose :
+\begin{center}
+  \includegraphics[width=10cm]{"fn de fp"}
+\end{center}
+Mais la courbe ROC (TPR en fonction de FPR) est plus intéressante :
+\begin{center}
+  \includegraphics[width=10cm]{"ROC"}
+\end{center}
+On doit aller en dessous de -1 pour obtenir l'ensemble de la courbe (-50) et un peu au dela de 1 (4). On voit que notre classifieur décroche au point $(0.07, 0.4)$ et que l'on devrait essayer de se placer ici pour maximiser son efficacité (très peu de fausses alarmes même s'il n'est pas encore très efficace pour détecter les visages ($TPR = 0.4$) ce qui correspond à des valeurs de $\theta$ entre -1 et 0 comme on peut le voir sur la partie de la courbe ROC correspondant à ces valeurs:
+\begin{center}
+  \includegraphics[width=10cm]{"ROC zoom"}
+\end{center}
+\section{Ouverture}
+Nous avons cependant été limités dans l’apprentissage par le nombre d’images disponibles (5233 images disponibles dont 84.37$\%$ de négatives), et notamment le fait qu’elles soient identiques dans les 3 dossiers (app, test et dev). Nous aurions peut-être dû passer à des caractéristiques rectangulaires pour obtenir davantage d’informations. Enfin, nous pourrions envisager de diviser la valeur de chaque caractéristique par sa taille afin de normaliser toutes les valeurs et de pouvoir ainsi les comparer entre elles et qu’elles soient toutes de l’ordre de l’unité (pour que $w_1$ et $w_2$ puissent avoir des influences du même ordre de grandeur (cf. 3.3 Choix de $\epsilon$).
 
 
 \end{document}

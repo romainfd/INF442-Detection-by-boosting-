@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : util.cpp
+// Name        : boostingDetection.cpp
 // Author      : Antoine Grosnit and Romain Fouilland
 // Version     :
 // Copyright   : Work of Antoine Grosnit and Romain Fouilland
@@ -685,7 +685,7 @@ int main(int argc, char** argv) {
 		for (int c = 0; c < nbC; c++) {
 			if (alphas[c] != 0) {
 				vector<int> shape = findCaract(c, np, 92, 112);
-				printf("La caract %d (w1 = %f, w2 = %f) part de (%d, %d) et est de taille (%d, %d) et est ponderee avec %.16f\n", c, w1[c], w2[c], shape[0], shape[1], shape[2], shape[2], alphas[c]);
+				printf("\tLa caract %d (w1 = %.3f, w2 = %.3f) part de (%d, %d) et \n\t\test de taille (%d, %d) et est ponderee avec %.3f\n", c, w1[c], w2[c], shape[0], shape[1], shape[2], shape[2], alphas[c]);
 			}
 		}
 	}
@@ -796,7 +796,8 @@ int main(int argc, char** argv) {
 		cout<< "tp : " << tp << "\ntn: " << tn << "\nfn : " << fn << "\nfp : " << fp;
 		cout<<"\ntotal : " << tp + tn + fn + fp << "\nNombre d'image dans test : "<< imagesTest.size();
 		cout<< "\n[precision, recall, F-score, FPR, TPR] :\n[" << precision << ", " << recall << ", " << Fscore << ", " << FPR << ", " <<
-				TPR << "]" << endl;
+				TPR << ", " << tp << ", " << tn << ", " << fn << ", " <<
+				fp << "]" << endl;
 		if (printDebug >= 3) {
 			printlineVect("alphas",alphas,20);
 		}

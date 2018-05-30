@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.17 (MiKTeX 2.9) (preloaded format=pdflatex 2016.8.23)  30 MAY 2018 01:56
+This is pdfTeX, Version 3.14159265-2.6-1.40.17 (MiKTeX 2.9) (preloaded format=pdflatex 2016.8.23)  30 MAY 2018 22:33
 entering extended mode
 **./Romain_Fouilland_Antoine_Grosnit_PI_Detection_par_boosting.tex
 (Romain_Fouilland_Antoine_Grosnit_PI_Detection_par_boosting.tex
@@ -1213,41 +1213,105 @@ File: polytechnique-filetlongrouge.pdf Graphic file (type pdf)
 Package pdftex.def Info: polytechnique-filetlongrouge.pdf used on input line 99
 .
 (pdftex.def)             Requested size: 124.21074pt x 2.16628pt.
+File: polytechnique-filetcourtbleuclair.pdf Graphic file (type pdf)
 
-Underfull \hbox (badness 10000) in paragraph at lines 101--102
+<use polytechnique-filetcourtbleuclair.pdf>
+Package pdftex.def Info: polytechnique-filetcourtbleuclair.pdf used on input li
+ne 100.
+(pdftex.def)             Requested size: 28.40483pt x 2.16676pt.
+
+<Image/"Caracteristiques".png, id=171, 941.01563pt x 337.26pt>
+File: Image/"Caracteristiques".png Graphic file (type png)
+
+<use Image/"Caracteristiques".png>
+Package pdftex.def Info: Image/"Caracteristiques".png used on input line 103.
+(pdftex.def)             Requested size: 284.52756pt x 101.97128pt.
+File: polytechnique-logohori.pdf Graphic file (type pdf)
+ <use polytechnique-logohori.pdf>
+Package pdftex.def Info: polytechnique-logohori.pdf used on input line 106.
+(pdftex.def)             Requested size: 97.76396pt x 42.67912pt.
+ [7 <./Image/Fig5 alpha.png> <./Image/Caracteristiques.png>]
+<Image/"Cars visage".png, id=179, 511.15968pt x 214.55156pt>
+File: Image/"Cars visage".png Graphic file (type png)
+
+<use Image/"Cars visage".png>
+Package pdftex.def Info: Image/"Cars visage".png used on input line 107.
+(pdftex.def)             Requested size: 426.79134pt x 179.13844pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 109--110
 
  []
 
-! Undefined control sequence.
-<recently read> \expsilon 
-                          
-l.103 ... de grandeur (cf. 3.3 Choix de $\expsilon
-                                                  $).
-The control sequence at the end of the top line
-of your error message was never \def'ed. If you have
-misspelled it (e.g., `\hobx'), type `I' and the correct
-spelling (e.g., `I\hbox'). Otherwise just continue,
-and I'll forget about whatever was undefined.
+File: polytechnique-filetcourtbleuclair.pdf Graphic file (type pdf)
+<use polytechnique-filetcourtbleuclair.pdf>
+Package pdftex.def Info: polytechnique-filetcourtbleuclair.pdf used on input li
+ne 111.
+(pdftex.def)             Requested size: 28.40483pt x 2.16676pt.
 
+Underfull \hbox (badness 10000) in paragraph at lines 112--113
+
+ []
+
+<Image/"Fscore de theta".png, id=180, 389.455pt x 252.945pt>
+File: Image/"Fscore de theta".png Graphic file (type png)
+
+<use Image/"Fscore de theta".png>
+Package pdftex.def Info: Image/"Fscore de theta".png used on input line 116.
+(pdftex.def)             Requested size: 284.52756pt x 184.80269pt.
+
+<Image/"fn de fp".png, id=181, 379.4175pt x 252.945pt>
+File: Image/"fn de fp".png Graphic file (type png)
+
+<use Image/"fn de fp".png>
+Package pdftex.def Info: Image/"fn de fp".png used on input line 121.
+(pdftex.def)             Requested size: 284.52756pt x 189.68898pt.
 File: polytechnique-logohori.pdf Graphic file (type pdf)
-<use polytechnique-logohori.pdf>
-Package pdftex.def Info: polytechnique-logohori.pdf used on input line 106.
+ <use polytechnique-logohori.pdf>
+Package pdftex.def Info: polytechnique-logohori.pdf used on input line 122.
 (pdftex.def)             Requested size: 97.76396pt x 42.67912pt.
- [7 <./Image/Fig5 alpha.png>]
+ [8 <./Image/Cars visage.png> <./Image/Fscore de theta.png>]
+<Image/"ROC".png, id=187, 376.40625pt x 252.945pt>
+File: Image/"ROC".png Graphic file (type png)
+ <use Image/"ROC".png>
+Package pdftex.def Info: Image/"ROC".png used on input line 125.
+(pdftex.def)             Requested size: 284.52756pt x 191.21739pt.
+
+<Image/"ROC zoom".png, id=188, 389.455pt x 252.945pt>
+File: Image/"ROC zoom".png Graphic file (type png)
+
+<use Image/"ROC zoom".png>
+Package pdftex.def Info: Image/"ROC zoom".png used on input line 129.
+(pdftex.def)             Requested size: 284.52756pt x 184.80269pt.
+File: polytechnique-logohori.pdf Graphic file (type pdf)
+ <use polytechnique-logohori.pdf>
+Package pdftex.def Info: polytechnique-logohori.pdf used on input line 130.
+(pdftex.def)             Requested size: 97.76396pt x 42.67912pt.
+ [9 <./Image/fn de fp.png> <./Image/ROC.png>]
+File: polytechnique-filetlongrouge.pdf Graphic file (type pdf)
+ <use polytechnique-filetlongrouge.pdf>
+Package pdftex.def Info: polytechnique-filetlongrouge.pdf used on input line 13
+1.
+(pdftex.def)             Requested size: 124.21074pt x 2.16628pt.
+File: polytechnique-logohori.pdf Graphic file (type pdf)
+
+<use polytechnique-logohori.pdf>
+Package pdftex.def Info: polytechnique-logohori.pdf used on input line 135.
+(pdftex.def)             Requested size: 97.76396pt x 42.67912pt.
+ [10 <./Image/ROC zoom.png>]
 (Romain_Fouilland_Antoine_Grosnit_PI_Detection_par_boosting.aux) ) 
 Here is how much of TeX's memory you used:
- 5989 strings out of 493334
- 82655 string characters out of 3136637
+ 6024 strings out of 493334
+ 83454 string characters out of 3136637
  149589 words of memory out of 3000000
- 9339 multiletter control sequences out of 15000+200000
- 71692 words of font info for 73 fonts, out of 3000000 for 9000
+ 9365 multiletter control sequences out of 15000+200000
+ 84487 words of font info for 76 fonts, out of 3000000 for 9000
  1141 hyphenation exceptions out of 8191
  40i,10n,46p,937b,455s stack positions out of 5000i,500n,10000p,200000b,50000s
 {C:/Program F
-iles (x86)/MiKTeX 2.9/fonts/enc/dvips/lm/lm-mathit.enc}{C:/Program Files (x86)/
-MiKTeX 2.9/fonts/enc/dvips/lm/lm-rm.enc}{C:/Program Files (x86)/MiKTeX 2.9/font
-s/enc/dvips/lm/lm-mathsy.enc}{C:/Program Files (x86)/MiKTeX 2.9/fonts/enc/dvips
-/lm/lm-mathex.enc}{C:/Program Files (x86)/MiKTeX 2.9/fonts/enc/dvips/lm/lm-ec.e
+iles (x86)/MiKTeX 2.9/fonts/enc/dvips/lm/lm-ec.enc}{C:/Program Files (x86)/MiKT
+eX 2.9/fonts/enc/dvips/lm/lm-mathit.enc}{C:/Program Files (x86)/MiKTeX 2.9/font
+s/enc/dvips/lm/lm-rm.enc}{C:/Program Files (x86)/MiKTeX 2.9/fonts/enc/dvips/lm/
+lm-mathsy.enc}{C:/Program Files (x86)/MiKTeX 2.9/fonts/enc/dvips/lm/lm-mathex.e
 nc}<C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmcsc10.pfb><C:/Pro
 gram Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmex10.pfb><C:/Program Files 
 (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmmi10.pfb><C:/Program Files (x86)/MiKTe
@@ -1257,14 +1321,14 @@ c/lm/lmmi8.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmr10.p
 fb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmr12.pfb><C:/Progr
 am Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmr6.pfb><C:/Program Files (x86
 )/MiKTeX 2.9/fonts/type1/public/lm/lmr8.pfb><C:/Program Files (x86)/MiKTeX 2.9/
-fonts/type1/public/lm/lmss12.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1
-/public/lm/lmssbx10.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/l
-m/lmsy10.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmsy8.pfb
->
+fonts/type1/public/lm/lmri10.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1
+/public/lm/lmss12.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/
+lmssbx10.pfb><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmsy10.pf
+b><C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/lm/lmsy8.pfb>
 Output written on Romain_Fouilland_Antoine_Grosnit_PI_Detection_par_boosting.pd
-f (7 pages, 2183183 bytes).
+f (10 pages, 2405041 bytes).
 PDF statistics:
- 226 PDF objects out of 1000 (max. 8388607)
+ 251 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
- 56 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 86 words of extra memory for PDF output out of 10000 (max. 10000000)
 
